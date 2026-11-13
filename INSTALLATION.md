@@ -2,12 +2,26 @@
 
 This guide will walk you through installing the Karpenter CloudStack Provider in your Kubernetes cluster.
 
+These instructions deploy from the fork at
+[ewerton-silva00/karpenter-provider-cloudstack](https://github.com/ewerton-silva00/karpenter-provider-cloudstack).
+The upstream project never published a Helm repository, chart or container
+image, so the chart is installed from a local clone and the image comes from
+this fork's GitHub Container Registry.
+
+> **Status: experimental.** The controller starts and connects to CloudStack
+> (validated on a CloudStack Kubernetes Service cluster running Kubernetes
+> 1.36). Node provisioning does **not** work yet: created VMs are not
+> bootstrapped to join the cluster and are never matched to a `Node`. Do not
+> create a `NodePool` on a cluster you care about — Karpenter would create and
+> destroy VMs in a loop.
+
 ## Prerequisites
 
 - Kubernetes cluster version 1.28 or later
 - CloudStack 4.22 or later
 - kubectl configured to access your cluster
 - Helm 3.x installed
+- git
 - CloudStack API credentials with appropriate permissions
 
 ## CloudStack Permissions
@@ -23,38 +37,77 @@ The CloudStack API credentials need the following permissions:
 
 ## Installation Steps
 
-### 1. Add Helm Repository
+### 1. Clone the Fork
+
+There is no Helm repository; the chart is installed from the source tree.
 
 ```bash
-helm repo add karpenter-cloudstack https://mperea.github.io/karpenter-provider-cloudstack
-helm repo update
+git clone https://github.com/ewerton-silva00/karpenter-provider-cloudstack.git
+cd karpenter-provider-cloudstack
 ```
 
-### 2. Create Namespace
+### 2. Choose a Controller Image
+
+A development image is published to GitHub Container Registry and is public:
+
+```
+ghcr.io/ewerton-silva00/cloudstack/karpenter/controller:dev-69b9cfa
+```
+
+The tag suffix is the commit the image was built from. To build and publish
+your own image instead (requires a token with the `write:packages` scope):
+
+```bash
+gh auth token | docker login ghcr.io -u <your-user> --password-stdin
+
+make docker-build REGISTRY=ghcr.io/<your-user> IMAGE_TAG=dev
+docker push ghcr.io/<your-user>/cloudstack/karpenter/controller:dev
+```
+
+A newly pushed GHCR package is private. Make it public in the package
+settings, or set `imagePullSecrets` in the chart values.
+
+### 3. Create Namespace
 
 ```bash
 kubectl create namespace karpenter
 ```
 
-### 3. Install Karpenter CloudStack Provider
+### 4. Install Karpenter CloudStack Provider
+
+The chart's default `image.repository` still points to the upstream registry,
+where no image exists, so the image must be set explicitly. Prefer a values
+file (see [Configuration Options](#configuration-options)) over `--set` for
+the credentials, to keep them out of your shell history.
 
 ```bash
-helm install karpenter-cloudstack karpenter-cloudstack/karpenter-cloudstack \
+helm install karpenter-cloudstack ./charts/karpenter-cloudstack \
   --namespace karpenter \
-  --set cloudstack.apiUrl=https://your-cloudstack-api.com \
+  --set image.repository=ghcr.io/ewerton-silva00/cloudstack/karpenter/controller \
+  --set image.tag=dev-69b9cfa \
+  --set cloudstack.apiUrl=https://your-cloudstack-api.com/client/api \
   --set cloudstack.apiKey=YOUR_API_KEY \
   --set cloudstack.secretKey=YOUR_SECRET_KEY \
   --set clusterName=my-cluster
 ```
 
-### 4. Verify Installation
+The chart installs the Karpenter core CRDs (`NodePool`, `NodeClaim`,
+`NodeOverlay`) together with `CloudStackNodeClass`.
+
+On a CloudStack Kubernetes Service (CKS) cluster, the API URL and keys the
+cluster already uses are stored in the `cloudstack-secret` secret in
+`kube-system` (key `cloud-config`).
+
+### 5. Verify Installation
 
 ```bash
-kubectl get pods -n karpenter
-kubectl logs -n karpenter -l app.kubernetes.io/name=karpenter-cloudstack
+kubectl get pods --namespace karpenter
+kubectl logs --namespace karpenter -l app.kubernetes.io/name=karpenter-cloudstack
 ```
 
-You should see the controller running and logs indicating it has connected to CloudStack.
+You should see the controller `1/1 Running` and logs indicating it has
+connected to CloudStack (`CloudStack operator initialized successfully`,
+followed by `Listed instances`).
 
 ## Configuration Options
 
@@ -63,11 +116,16 @@ You should see the controller running and logs indicating it has connected to Cl
 Create a `values.yaml` file with your configuration:
 
 ```yaml
+# Controller Image
+image:
+  repository: ghcr.io/ewerton-silva00/cloudstack/karpenter/controller
+  tag: dev-69b9cfa
+
 # CloudStack Configuration
 cloudstack:
-  apiUrl: "https://your-cloudstack-api.com"
+  apiUrl: "https://your-cloudstack-api.com/client/api"
   apiKey: "your-api-key"
-  apiKey: "your-secret-key"
+  secretKey: "your-secret-key"
   verifySSL: true
 
 # Cluster Configuration
@@ -89,12 +147,16 @@ logLevel: info
 Install with custom values:
 
 ```bash
-helm install karpenter-cloudstack karpenter-cloudstack/karpenter-cloudstack \
+helm install karpenter-cloudstack ./charts/karpenter-cloudstack \
   --namespace karpenter \
   --values values.yaml
 ```
 
 ## Creating Your First NodeClass
+
+> Service offering selection by `tags` is not implemented yet; select service
+> offerings by `name` or `id`. See the status note at the top before creating
+> a `NodePool`.
 
 After installation, create a CloudStackNodeClass:
 
@@ -246,7 +308,7 @@ kubectl get events --sort-by='.lastTimestamp' | grep NodeClaim
 
 If you have self-signed certificates:
 ```bash
-helm upgrade karpenter-cloudstack karpenter-cloudstack/karpenter-cloudstack \
+helm upgrade karpenter-cloudstack ./charts/karpenter-cloudstack \
   --namespace karpenter \
   --set cloudstack.verifySSL=false \
   --reuse-values
@@ -254,13 +316,22 @@ helm upgrade karpenter-cloudstack karpenter-cloudstack/karpenter-cloudstack \
 
 ## Upgrading
 
-To upgrade to a new version:
+To upgrade to a new version, update your clone and point the release at the
+new image tag:
 
 ```bash
-helm repo update
-helm upgrade karpenter-cloudstack karpenter-cloudstack/karpenter-cloudstack \
+git pull
+helm upgrade karpenter-cloudstack ./charts/karpenter-cloudstack \
   --namespace karpenter \
-  --reuse-values
+  --reuse-values \
+  --set image.tag=<new-tag>
+```
+
+Helm does not upgrade CRDs. When the files under
+`charts/karpenter-cloudstack/crds/` change, apply them manually:
+
+```bash
+kubectl apply --server-side -f charts/karpenter-cloudstack/crds/
 ```
 
 ## Uninstallation
