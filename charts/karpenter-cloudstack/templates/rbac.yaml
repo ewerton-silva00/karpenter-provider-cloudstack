@@ -12,27 +12,45 @@ rules:
 - apiGroups: ["karpenter.k8s.cloudstack"]
   resources: ["cloudstacknodeclasses/status"]
   verbs: ["get", "patch", "update"]
-# Karpenter core permissions
+# Karpenter core permissions (mirrors the upstream sigs.k8s.io/karpenter core ClusterRole)
+# Read
 - apiGroups: ["karpenter.sh"]
-  resources: ["nodepools", "nodeclaims"]
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-- apiGroups: ["karpenter.sh"]
-  resources: ["nodepools/status", "nodeclaims/status"]
-  verbs: ["get", "patch", "update"]
-# Node permissions
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-- apiGroups: [""]
-  resources: ["pods"]
+  resources: ["nodepools", "nodepools/status", "nodeclaims", "nodeclaims/status", "nodeoverlays", "nodeoverlays/status"]
   verbs: ["get", "list", "watch"]
 - apiGroups: [""]
-  resources: ["pods/eviction"]
-  verbs: ["create"]
-# Event permissions
+  resources: ["pods", "nodes", "persistentvolumes", "persistentvolumeclaims", "replicationcontrollers", "namespaces"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses", "csinodes", "volumeattachments"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+  verbs: ["list", "watch"]
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["list", "watch"]
+- apiGroups: ["policy"]
+  resources: ["poddisruptionbudgets"]
+  verbs: ["get", "list", "watch"]
+# Write
+- apiGroups: ["karpenter.sh"]
+  resources: ["nodeclaims", "nodeclaims/status", "nodeclaims/finalizers"]
+  verbs: ["create", "delete", "update", "patch"]
+- apiGroups: ["karpenter.sh"]
+  resources: ["nodepools", "nodepools/status", "nodepools/finalizers", "nodeoverlays/status"]
+  verbs: ["update", "patch"]
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["create", "patch"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["create", "patch", "delete", "update"]
+- apiGroups: [""]
+  resources: ["pods/eviction"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -48,4 +66,69 @@ subjects:
 - kind: ServiceAccount
   name: {{ include "karpenter-cloudstack.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
-
+---
+# Leader election lease, created in the namespace the controller runs in
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "karpenter-cloudstack.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter-cloudstack.labels" . | nindent 4 }}
+rules:
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "watch"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["patch", "update"]
+  resourceNames: ["karpenter-leader-election"]
+# Cannot specify resourceNames on create
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "karpenter-cloudstack.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter-cloudstack.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "karpenter-cloudstack.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "karpenter-cloudstack.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+---
+# Node leases, garbage collected by the core lease controller
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "karpenter-cloudstack.fullname" . }}-lease
+  namespace: kube-node-lease
+  labels:
+    {{- include "karpenter-cloudstack.labels" . | nindent 4 }}
+rules:
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "list", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "karpenter-cloudstack.fullname" . }}-lease
+  namespace: kube-node-lease
+  labels:
+    {{- include "karpenter-cloudstack.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "karpenter-cloudstack.fullname" . }}-lease
+subjects:
+- kind: ServiceAccount
+  name: {{ include "karpenter-cloudstack.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}

@@ -57,17 +57,20 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
+        - name: health
+          containerPort: 8081
+          protocol: TCP
         - name: webhook
           containerPort: 8443
           protocol: TCP
         livenessProbe:
           httpGet:
             path: /healthz
-            port: http
+            port: health
         readinessProbe:
           httpGet:
             path: /readyz
-            port: http
+            port: health
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
