@@ -19,6 +19,7 @@ package v1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
@@ -38,4 +39,9 @@ func init() {
 		&CloudStackNodeClass{},
 		&CloudStackNodeClassList{},
 	)
+	// Karpenter core builds its manager and resolves GVKs from the global
+	// client-go scheme, so the types must be registered there as well.
+	if err := AddToScheme(clientgoscheme.Scheme); err != nil {
+		panic(err)
+	}
 }
