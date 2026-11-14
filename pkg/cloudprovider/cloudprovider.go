@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -91,7 +92,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	}
 
 	// Convert instance to NodeClaim
-	nc := c.instanceToNodeClaim(inst, nodeClass)
+	nc := c.instanceToNodeClaim(inst, instanceTypes)
 	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 		v1.AnnotationNodeClassHash:        nodeClass.Hash(),
 		v1.AnnotationNodeClassHashVersion: v1.CloudStackNodeClassHashVersion,
@@ -120,7 +121,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 		return nil, fmt.Errorf("resolving nodeclass: %w", err)
 	}
 
-	return c.instanceToNodeClaim(inst, nodeClass), nil
+	return c.instanceToNodeClaim(inst, c.instanceTypesFor(ctx, nodeClass)), nil
 }
 
 // List returns all nodes managed by Karpenter
@@ -137,7 +138,7 @@ func (c *CloudProvider) List(ctx context.Context) ([]*karpv1.NodeClaim, error) {
 			return nil, fmt.Errorf("resolving nodeclass: %w", err)
 		}
 
-		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(inst, nodeClass))
+		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(inst, c.instanceTypesFor(ctx, nodeClass)))
 	}
 
 	return nodeClaims, nil
@@ -293,8 +294,24 @@ func (c *CloudProvider) resolveNodeClassFromInstance(ctx context.Context, inst *
 	return nodeClass, nil
 }
 
-// instanceToNodeClaim converts an Instance to a NodeClaim
-func (c *CloudProvider) instanceToNodeClaim(inst *instance.Instance, nodeClass *v1.CloudStackNodeClass) *karpv1.NodeClaim {
+// instanceTypesFor returns the instance types of a node class, or nil when the
+// node class is gone or they cannot be listed. They are only used to report
+// the capacity of an instance, so failing to list them is not an error.
+func (c *CloudProvider) instanceTypesFor(ctx context.Context, nodeClass *v1.CloudStackNodeClass) []*cloudprovider.InstanceType {
+	if nodeClass == nil {
+		return nil
+	}
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
+	if err != nil {
+		log.FromContext(ctx).V(1).Info("Failed to list instance types", "nodeClass", nodeClass.Name, "error", err)
+		return nil
+	}
+	return instanceTypes
+}
+
+// instanceToNodeClaim converts an Instance to a NodeClaim. The capacity is
+// taken from the instance type matching the service offering of the instance.
+func (c *CloudProvider) instanceToNodeClaim(inst *instance.Instance, instanceTypes []*cloudprovider.InstanceType) *karpv1.NodeClaim {
 	nodeClaim := &karpv1.NodeClaim{}
 
 	labels := map[string]string{
@@ -317,7 +334,11 @@ func (c *CloudProvider) instanceToNodeClaim(inst *instance.Instance, nodeClass *
 		labels[karpv1.NodePoolLabelKey] = nodePoolName
 	}
 
-	nodeClaim.Labels = labels
+	// CloudStack names are free text (e.g. "Ubuntu 24.04 LTS (Noble Numbat)").
+	// An invalid label value would make the API server reject the NodeClaim.
+	nodeClaim.Labels = lo.PickBy(labels, func(_ string, value string) bool {
+		return len(validation.IsValidLabelValue(value)) == 0
+	})
 	nodeClaim.Annotations = map[string]string{}
 	nodeClaim.CreationTimestamp = metav1.Time{Time: inst.CreatedTime}
 
@@ -333,30 +354,33 @@ func (c *CloudProvider) instanceToNodeClaim(inst *instance.Instance, nodeClass *
 	// Set image ID
 	nodeClaim.Status.ImageID = inst.TemplateID
 
-	// TODO: Set capacity and allocatable based on service offering
-	// This would require fetching the service offering details
+	if instanceType, ok := lo.Find(instanceTypes, func(it *cloudprovider.InstanceType) bool {
+		return it.Name == inst.ServiceOffering
+	}); ok {
+		nodeClaim.Status.Capacity = instanceType.Capacity
+		nodeClaim.Status.Allocatable = instanceType.Allocatable()
+	}
 
 	return nodeClaim
 }
 
-// ParseProviderID parses a provider ID and returns the instance ID
+const providerIDPrefix = "cloudstack://"
+
+// ParseProviderID returns the instance ID of a provider ID in the format
+// cloudstack://<zone>/<instance-id>
 func ParseProviderID(providerID string) (string, error) {
-	// Format: cloudstack://<zone>/<instance-id>
-	// For simplicity, we'll extract just the instance ID
-	if providerID == "" {
-		return "", fmt.Errorf("provider ID is empty")
+	rest, ok := strings.CutPrefix(providerID, providerIDPrefix)
+	if !ok {
+		return "", fmt.Errorf("invalid provider ID format: %q", providerID)
 	}
-
-	// Simple parsing - extract the last part after the last /
-	parts := strings.Split(providerID, "/")
-	if len(parts) == 0 {
-		return "", fmt.Errorf("invalid provider ID format: %s", providerID)
+	zone, id, ok := strings.Cut(rest, "/")
+	if !ok || zone == "" || id == "" || strings.Contains(id, "/") {
+		return "", fmt.Errorf("invalid provider ID format: %q", providerID)
 	}
-
-	return parts[len(parts)-1], nil
+	return id, nil
 }
 
 // FormatProviderID formats a provider ID
 func FormatProviderID(zone, instanceID string) string {
-	return fmt.Sprintf("cloudstack://%s/%s", zone, instanceID)
+	return providerIDPrefix + zone + "/" + instanceID
 }

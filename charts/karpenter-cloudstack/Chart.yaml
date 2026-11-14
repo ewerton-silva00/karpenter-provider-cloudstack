@@ -2,8 +2,8 @@ apiVersion: v2
 name: karpenter-cloudstack
 description: A Helm chart for Karpenter CloudStack Provider
 type: application
-version: 0.1.0
-appVersion: "dev-69b9cfa"
+version: 0.2.0
+appVersion: "dev-f467f14"
 keywords:
   - karpenter
   - cloudstack

@@ -8,12 +8,11 @@ The upstream project never published a Helm repository, chart or container
 image, so both the chart and the image come from this fork's GitHub Container
 Registry.
 
-> **Status: experimental.** The controller starts and connects to CloudStack
-> (validated on a CloudStack Kubernetes Service cluster running Kubernetes
-> 1.36). Node provisioning does **not** work yet: created VMs are not
-> bootstrapped to join the cluster and are never matched to a `Node`. Do not
-> create a `NodePool` on a cluster you care about — Karpenter would create and
-> destroy VMs in a loop.
+> **Status: experimental.** Node provisioning was validated end to end only on
+> CloudStack Kubernetes Service (CKS), where it needs the setup described in
+> [docs/CKS.md](./docs/CKS.md). On other kinds of cluster the user data must
+> make the VM join the cluster and set its provider ID, which is untested.
+> Always set `limits` on a `NodePool`.
 
 ## Prerequisites
 
@@ -55,7 +54,7 @@ over `--set` for the credentials, to keep them out of your shell history.
 ```bash
 helm install karpenter-cloudstack \
   oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack \
-  --version 0.1.0 \
+  --version 0.2.0 \
   --namespace karpenter \
   --set cloudstack.apiUrl=https://your-cloudstack-api.com/client/api \
   --set cloudstack.apiKey=YOUR_API_KEY \
@@ -116,7 +115,7 @@ Install with custom values:
 ```bash
 helm install karpenter-cloudstack \
   oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack \
-  --version 0.1.0 \
+  --version 0.2.0 \
   --namespace karpenter \
   --values values.yaml
 ```
@@ -146,9 +145,11 @@ settings, or set `imagePullSecrets` in the chart values.
 
 ## Creating Your First NodeClass
 
+> On CloudStack Kubernetes Service, follow [docs/CKS.md](./docs/CKS.md) instead
+> of this section and the next one.
+>
 > Service offering selection by `tags` is not implemented yet; select service
-> offerings by `name` or `id`. See the status note at the top before creating
-> a `NodePool`.
+> offerings by `name` or `id`.
 
 After installation, create a CloudStackNodeClass:
 
@@ -302,7 +303,7 @@ If you have self-signed certificates:
 ```bash
 helm upgrade karpenter-cloudstack \
   oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack \
-  --version 0.1.0 \
+  --version 0.2.0 \
   --namespace karpenter \
   --set cloudstack.verifySSL=false \
   --reuse-values
