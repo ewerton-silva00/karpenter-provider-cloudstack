@@ -15,32 +15,44 @@ Working (validated on a CloudStack Kubernetes Service cluster, Kubernetes 1.36):
 - Controller starts, wins leader election, connects to CloudStack and lists VMs.
 - Chart installs CRDs, RBAC and the deployment.
 
-Known broken — node provisioning does not work end to end:
+Implemented but not yet validated end to end with a `NodePool` (the manual
+equivalent was validated: a VM deployed with `cmk` joined the cluster):
 
-- Nodes are matched to `NodeClaim`s by `spec.providerID`. CKS nodes have no
-  `providerID`, and the format built by `FormatProviderID`
-  (`cloudstack://<zone>/<id>`) is unverified against the CloudStack CCM.
-- No bootstrap: `userData` is passed through as is. Nothing makes the VM join
-  the cluster (`kubeadm join`), and CKS does not know about the VM.
-- `selectInstanceType` (`pkg/providers/instance/instance.go`) returns the first
-  instance type and ignores the `NodeClaim` requirements.
+- Bootstrap on CloudStack Kubernetes Service (CKS). A VM joins the cluster when
+  it is deployed from a cloud-init template with a CD-ROM capable kernel
+  (Ubuntu 24.04 works) with the CKS worker `userData` plus a block that
+  installs containerd, and the Kubernetes binaries ISO is attached
+  (`spec.iso`). Images that do **not** work: the CKS system VM template
+  (CloudStack refuses to deploy it as a user VM, and registered as a user
+  template it boots unconfigured) and Debian `genericcloud` (its kernel has no
+  CD-ROM driver, so the ISO is invisible).
+- Provider ID. CKS kubelets run without an external cloud provider, so nothing
+  sets `spec.providerID`. `pkg/controllers/node/providerid` sets it from the
+  NodeClaim, found through the node name (`karpenter-<nodeclaim>`), then
+  detaches the ISO.
+- Instance type selection: cheapest type that satisfies the requirements and
+  fits the requests.
+
+Known gaps:
+
 - Service offering selection by tags is not implemented
   (`pkg/providers/instancetype/instancetype.go`).
-- `Create` tags the VM only after it is `Running`; a failure in between leaves
-  an untagged VM that `List` and garbage collection cannot see.
-- `instanceToNodeClaim` does not set capacity/allocatable; prices are made up.
+- Prices are made up, and instance type memory is the service offering memory,
+  slightly more than what the node reports.
+- VMs launched by Karpenter are unknown to CKS: they are not counted, upgraded
+  or removed with the cluster.
+- The CKS `userData` embeds a bootstrap token that never expires.
 
-Do not create a `NodePool` on a shared cluster until the first two are fixed:
-Karpenter would create and destroy VMs in a loop.
+Do not create a `NodePool` without `limits` on a shared cluster.
 
 ## Commands
 
 ```bash
 go build ./...            # compile
 go vet ./...
-make test                 # go test -v ./... (there are no tests yet)
+make test                 # go test -v ./...
 make lint                 # golangci-lint; `make tools` installs it
-make generate             # deepcopy + CloudStackNodeClass CRD into the chart
+make generate             # deepcopy + CloudStackNodeClass CRD into the chart (controller-gen v0.19.0)
 helm lint charts/karpenter-cloudstack
 helm template karpenter charts/karpenter-cloudstack -n karpenter --include-crds
 ```
@@ -75,6 +87,8 @@ keep the chart version there in sync.
 - `pkg/providers/{instance,instancetype,network,template,zone}` — CloudStack
   lookups and VM lifecycle, each with an in-memory cache.
 - `pkg/controllers/nodeclass` — reconciles `CloudStackNodeClass` status.
+- `pkg/controllers/node/providerid` — sets `spec.providerID` on nodes launched
+  by Karpenter.
 - `pkg/apis/v1` — `CloudStackNodeClass` types.
 - `charts/karpenter-cloudstack` — Helm chart; `crds/` holds the provider CRD
   and the Karpenter core CRDs.
