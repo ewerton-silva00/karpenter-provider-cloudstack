@@ -28,6 +28,9 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 ##
 FROM --platform=$TARGETPLATFORM gcr.io/distroless/static:nonroot
 
+# Links the package to the repository on GitHub Container Registry
+LABEL org.opencontainers.image.source=https://github.com/ewerton-silva00/karpenter-provider-cloudstack
+
 WORKDIR /
 
 COPY --from=builder /workspace/controller .
