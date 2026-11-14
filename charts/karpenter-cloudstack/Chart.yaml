@@ -9,11 +9,11 @@ keywords:
   - cloudstack
   - autoscaling
   - kubernetes
-home: https://github.com/mperea/karpenter-provider-cloudstack
+home: https://github.com/ewerton-silva00/karpenter-provider-cloudstack
 sources:
   - https://github.com/ewerton-silva00/karpenter-provider-cloudstack
   - https://github.com/mperea/karpenter-provider-cloudstack
 maintainers:
-  - name: Mario Perea
-    url: https://github.com/mperea
+  - name: Ewerton Silva
+    url: https://github.com/ewerton-silva00
 
