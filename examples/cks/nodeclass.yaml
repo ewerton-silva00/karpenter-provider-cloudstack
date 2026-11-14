@@ -1,0 +1,35 @@
+# CloudStackNodeClass for a CloudStack Kubernetes Service (CKS) cluster.
+# See docs/CKS.md for where each value comes from.
+#
+# The user data is not part of this file because it embeds the cluster
+# bootstrap token. Generate it with hack/cks-userdata.sh and add it with
+# `kubectl patch`, as described in docs/CKS.md.
+apiVersion: karpenter.k8s.cloudstack/v1
+kind: CloudStackNodeClass
+metadata:
+  name: cks
+spec:
+  # Zone of the cluster
+  zone: my-zone
+
+  # Network of the cluster
+  networkSelectorTerms:
+    - name: my-cluster
+
+  # Service offerings Karpenter may choose from. Selection by tags is not
+  # implemented, and custom (unconstrained) offerings are ignored.
+  serviceOfferingSelectorTerms:
+    - name: KVM-2-4
+    - name: KVM-4-8
+
+  # A cloud-init template with a kernel that can read the ISO. Ubuntu 24.04
+  # works; the CKS system VM template and Debian "genericcloud" do not.
+  templateSelectorTerms:
+    - name: Ubuntu 24.04 LTS (Noble Numbat)
+
+  # Kubernetes binaries ISO of the version the cluster runs
+  iso:
+    name: cks-v1.36.0-Kubernetes-Binaries-ISO
+
+  # CKS nodes use 20 GB
+  rootDiskSize: 20

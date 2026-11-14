@@ -1,0 +1,35 @@
+# NodePool for a CloudStack Kubernetes Service (CKS) cluster.
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: cks
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.cloudstack
+        kind: CloudStackNodeClass
+        name: cks
+
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+
+      # CKS installs Cilium, whose operator taints every new node until the
+      # agent is ready. Karpenter must know the taint is temporary, otherwise it
+      # launches a second node for the same pods.
+      startupTaints:
+        - key: node.cilium.io/agent-not-ready
+          value: "true"
+          effect: NoSchedule
+
+      expireAfter: Never
+
+  # Always set limits: they bound what a misconfiguration can launch
+  limits:
+    cpu: "16"
+
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m

@@ -15,23 +15,24 @@ Working (validated on a CloudStack Kubernetes Service cluster, Kubernetes 1.36):
 - Controller starts, wins leader election, connects to CloudStack and lists VMs.
 - Chart installs CRDs, RBAC and the deployment.
 
-Implemented but not yet validated end to end with a `NodePool` (the manual
-equivalent was validated: a VM deployed with `cmk` joined the cluster):
+Node provisioning is validated end to end on CKS only (scale up, instance type
+selection, NodePool limits, consolidation, scale to zero). `docs/CKS.md` is the
+user-facing guide; the reasons behind the design:
 
-- Bootstrap on CloudStack Kubernetes Service (CKS). A VM joins the cluster when
-  it is deployed from a cloud-init template with a CD-ROM capable kernel
-  (Ubuntu 24.04 works) with the CKS worker `userData` plus a block that
-  installs containerd, and the Kubernetes binaries ISO is attached
-  (`spec.iso`). Images that do **not** work: the CKS system VM template
-  (CloudStack refuses to deploy it as a user VM, and registered as a user
-  template it boots unconfigured) and Debian `genericcloud` (its kernel has no
-  CD-ROM driver, so the ISO is invisible).
-- Provider ID. CKS kubelets run without an external cloud provider, so nothing
-  sets `spec.providerID`. `pkg/controllers/node/providerid` sets it from the
+- CKS nodes cannot be reproduced from the CKS image. CloudStack refuses to
+  deploy the system VM template as a user VM, and registered as a user template
+  it boots unconfigured and ignores the user data. Nodes are launched from a
+  cloud image (Ubuntu 24.04 works; Debian `genericcloud` has no CD-ROM driver,
+  so the ISO is invisible) with the user data of a CKS worker plus containerd
+  (`hack/cks-userdata.sh`), and the Kubernetes binaries ISO attached
+  (`spec.iso`).
+- CKS kubelets run without an external cloud provider, so nothing sets
+  `spec.providerID`. `pkg/controllers/node/providerid` sets it from the
   NodeClaim, found through the node name (`karpenter-<nodeclaim>`), then
   detaches the ISO.
-- Instance type selection: cheapest type that satisfies the requirements and
-  fits the requests.
+- The Cilium operator taints new nodes with
+  `node.cilium.io/agent-not-ready:NoSchedule`. Unless the NodePool lists it in
+  `startupTaints`, Karpenter launches a duplicate node for the same pods.
 
 Known gaps:
 

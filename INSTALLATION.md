@@ -8,12 +8,11 @@ The upstream project never published a Helm repository, chart or container
 image, so both the chart and the image come from this fork's GitHub Container
 Registry.
 
-> **Status: experimental.** The controller starts and connects to CloudStack
-> (validated on a CloudStack Kubernetes Service cluster running Kubernetes
-> 1.36). Node provisioning does **not** work yet: created VMs are not
-> bootstrapped to join the cluster and are never matched to a `Node`. Do not
-> create a `NodePool` on a cluster you care about — Karpenter would create and
-> destroy VMs in a loop.
+> **Status: experimental.** Node provisioning was validated end to end only on
+> CloudStack Kubernetes Service (CKS), where it needs the setup described in
+> [docs/CKS.md](./docs/CKS.md). On other kinds of cluster the user data must
+> make the VM join the cluster and set its provider ID, which is untested.
+> Always set `limits` on a `NodePool`.
 
 ## Prerequisites
 
@@ -146,9 +145,11 @@ settings, or set `imagePullSecrets` in the chart values.
 
 ## Creating Your First NodeClass
 
+> On CloudStack Kubernetes Service, follow [docs/CKS.md](./docs/CKS.md) instead
+> of this section and the next one.
+>
 > Service offering selection by `tags` is not implemented yet; select service
-> offerings by `name` or `id`. See the status note at the top before creating
-> a `NodePool`.
+> offerings by `name` or `id`.
 
 After installation, create a CloudStackNodeClass:
 
