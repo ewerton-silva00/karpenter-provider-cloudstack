@@ -52,8 +52,17 @@ make docker-build REGISTRY=ghcr.io/ewerton-silva00 IMAGE_TAG=dev-<short-sha>
 docker push ghcr.io/ewerton-silva00/cloudstack/karpenter/controller:dev-<short-sha>
 ```
 
-Deployment from the fork is described in `INSTALLATION.md`. Keep the image tag
-there in sync when publishing a new image.
+Chart (published as an OCI artifact; the chart's `appVersion` is the default
+image tag, so it must name an image that exists):
+
+```bash
+helm package charts/karpenter-cloudstack -d <out-dir>
+helm push <out-dir>/karpenter-cloudstack-<version>.tgz oci://ghcr.io/ewerton-silva00/charts
+```
+
+Bump `version` in `Chart.yaml` for every published change; do not overwrite a
+published version. Deployment from the fork is described in `INSTALLATION.md`;
+keep the chart version there in sync.
 
 ## Layout
 

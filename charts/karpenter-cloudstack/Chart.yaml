@@ -3,7 +3,7 @@ name: karpenter-cloudstack
 description: A Helm chart for Karpenter CloudStack Provider
 type: application
 version: 0.1.0
-appVersion: "0.1.0"
+appVersion: "dev-69b9cfa"
 keywords:
   - karpenter
   - cloudstack
