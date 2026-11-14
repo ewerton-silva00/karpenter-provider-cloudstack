@@ -61,6 +61,22 @@ spec:
               diskOffering:
                 description: DiskOffering specifies the disk offering for data disks
                 type: string
+              iso:
+                description: |-
+                  ISO selects an ISO that is attached to each VM right after it is deployed.
+                  CloudStack Kubernetes Service nodes install kubeadm, kubelet and the
+                  container images from the Kubernetes binaries ISO of the cluster version.
+                properties:
+                  id:
+                    description: ID is the ISO id in CloudStack
+                    type: string
+                  name:
+                    description: Name is the ISO name in CloudStack
+                    type: string
+                type: object
+                x-kubernetes-validations:
+                - message: expected exactly one of ['id', 'name']
+                  rule: has(self.id) != has(self.name)
               networkSelectorTerms:
                 description: NetworkSelectorTerms is a list of network selector terms.
                   The terms are ORed.
@@ -208,8 +224,8 @@ spec:
               conditions:
                 description: Conditions contains signals for health and readiness
                 items:
-                  description: Condition contains details for one aspect of the current
-                    state of this API Resource.
+                  description: Condition aliases the upstream type and adds additional
+                    helper methods
                   properties:
                     lastTransitionTime:
                       description: |-

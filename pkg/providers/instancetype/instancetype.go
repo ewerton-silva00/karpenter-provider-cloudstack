@@ -130,6 +130,11 @@ func (p *DefaultProvider) resolveServiceOfferings(ctx context.Context, nodeClass
 
 // filterServiceOfferings filters service offerings based on selector terms
 func (p *DefaultProvider) filterServiceOfferings(offerings []*cloudstack.ServiceOffering, terms []v1.ServiceOfferingSelectorTerm) []*cloudstack.ServiceOffering {
+	// Custom offerings have no fixed CPU or memory, so they cannot be described as an instance type
+	offerings = lo.Reject(offerings, func(o *cloudstack.ServiceOffering, _ int) bool {
+		return o.Iscustomized
+	})
+
 	var matched []*cloudstack.ServiceOffering
 
 	for _, term := range terms {

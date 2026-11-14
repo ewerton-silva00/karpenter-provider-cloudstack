@@ -22,7 +22,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/karpenter/pkg/events"
 
+	"github.com/mperea/karpenter-provider-cloudstack/pkg/controllers/node/providerid"
 	"github.com/mperea/karpenter-provider-cloudstack/pkg/controllers/nodeclass"
+	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/instance"
 	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/network"
 	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/template"
 	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/zone"
@@ -37,6 +39,7 @@ func NewControllers(
 	zoneProvider zone.Provider,
 	networkProvider network.Provider,
 	templateProvider template.Provider,
+	instanceProvider instance.Provider,
 ) []controller.Controller {
 	return []controller.Controller{
 		nodeclass.NewController(
@@ -46,5 +49,6 @@ func NewControllers(
 			networkProvider,
 			templateProvider,
 		),
+		providerid.NewController(kubeClient, instanceProvider),
 	}
 }

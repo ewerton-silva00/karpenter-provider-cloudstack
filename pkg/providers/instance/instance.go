@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/apache/cloudstack-go/v2/cloudstack"
@@ -25,6 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	v1 "github.com/mperea/karpenter-provider-cloudstack/pkg/apis/v1"
 	csapi "github.com/mperea/karpenter-provider-cloudstack/pkg/cloudstack"
@@ -38,6 +42,23 @@ type Provider interface {
 	Get(ctx context.Context, id string) (*Instance, error)
 	List(ctx context.Context) ([]*Instance, error)
 	Delete(ctx context.Context, id string) error
+	DetachISO(ctx context.Context, id string) error
+}
+
+// vmNamePrefix prefixes the name of every VM launched by Karpenter. The VM name
+// becomes the hostname, and therefore the name of the Node.
+const vmNamePrefix = "karpenter-"
+
+// VMName returns the name of the VM launched for a NodeClaim.
+func VMName(nodeClaimName string) string {
+	return vmNamePrefix + nodeClaimName
+}
+
+// NodeClaimNameFromVMName returns the name of the NodeClaim a VM was launched
+// for, and false if the name does not belong to a VM launched by Karpenter.
+func NodeClaimNameFromVMName(vmName string) (string, bool) {
+	name, ok := strings.CutPrefix(vmName, vmNamePrefix)
+	return name, ok && name != ""
 }
 
 // Instance represents a CloudStack virtual machine
@@ -88,9 +109,9 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.CloudStackNo
 	log.FromContext(ctx).Info("Creating instance", "nodeClaim", nodeClaim.Name)
 
 	// Select instance type (service offering)
-	instanceType := p.selectInstanceType(nodeClaim, instanceTypes)
+	instanceType := selectInstanceType(nodeClaim, instanceTypes)
 	if instanceType == nil {
-		return nil, fmt.Errorf("no suitable instance type found")
+		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("no instance type satisfies the requirements and resource requests of the nodeclaim"))
 	}
 
 	// Get zone ID
@@ -136,7 +157,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.CloudStackNo
 	deployParams.SetNetworkids([]string{networkID})
 
 	// Set name
-	vmName := fmt.Sprintf("karpenter-%s", nodeClaim.Name)
+	vmName := VMName(nodeClaim.Name)
 	deployParams.SetName(vmName)
 	deployParams.SetDisplayname(vmName)
 
@@ -156,30 +177,111 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.CloudStackNo
 		deployParams.SetKeypair(*nodeClass.Spec.SSHKeyPair)
 	}
 
+	// Resolve the ISO before deploying, so a bad selector does not leave a VM behind
+	isoID, err := p.resolveISO(nodeClass, zoneID)
+	if err != nil {
+		return nil, fmt.Errorf("resolving ISO: %w", err)
+	}
+
 	// Deploy the VM
 	resp, err := p.csClient.DeployVirtualMachine(deployParams)
 	if err != nil {
+		// The VM may exist even though the deployment failed, e.g. when it could not be started
+		p.destroyByName(ctx, vmName)
 		return nil, fmt.Errorf("deploying virtual machine: %w", err)
 	}
 
-	// Wait for the VM to be running
-	vm, err := p.waitForVMState(ctx, resp.Id, "Running", 5*time.Minute)
+	// From here on the VM exists: destroy it if anything fails, otherwise it
+	// would be left running without a NodeClaim
+	instance, err := p.finishCreate(ctx, resp.Id, isoID, nodeClass, nodeClaim)
+	if err != nil {
+		p.destroy(ctx, resp.Id)
+		return nil, err
+	}
+
+	log.FromContext(ctx).Info("Instance created successfully", "instanceID", instance.ID, "name", instance.Name, "instanceType", instanceType.Name)
+
+	return instance, nil
+}
+
+// finishCreate tags a deployed VM, waits for it to run and attaches the ISO
+func (p *DefaultProvider) finishCreate(ctx context.Context, vmID, isoID string, nodeClass *v1.CloudStackNodeClass, nodeClaim *karpv1.NodeClaim) (*Instance, error) {
+	// Tag first: List only returns tagged VMs, so an untagged VM is invisible to garbage collection
+	tags := p.buildTags(nodeClass, nodeClaim)
+	if err := p.createTags(ctx, vmID, tags); err != nil {
+		return nil, fmt.Errorf("creating tags: %w", err)
+	}
+
+	vm, err := p.waitForVMState(ctx, vmID, "Running", 5*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("waiting for VM to be running: %w", err)
 	}
 
-	// Create tags
-	tags := p.buildTags(nodeClass, nodeClaim)
-	if err := p.createTags(ctx, vm.Id, tags); err != nil {
-		log.FromContext(ctx).Error(err, "Failed to create tags", "vmID", vm.Id)
-		// Don't fail the creation if tagging fails
+	if isoID != "" {
+		iso := p.csClient.(*csapi.Client).ISO
+		if _, err := iso.AttachIso(iso.NewAttachIsoParams(isoID, vmID)); err != nil {
+			return nil, fmt.Errorf("attaching ISO %s: %w", isoID, err)
+		}
 	}
 
-	instance := p.convertToInstance(vm, tags)
+	return p.convertToInstance(vm, tags), nil
+}
 
-	log.FromContext(ctx).Info("Instance created successfully", "instanceID", instance.ID, "name", instance.Name)
+// resolveISO returns the ID of the ISO selected by the node class, or "" if none is
+func (p *DefaultProvider) resolveISO(nodeClass *v1.CloudStackNodeClass, zoneID string) (string, error) {
+	if nodeClass.Spec.ISO == nil {
+		return "", nil
+	}
+	if nodeClass.Spec.ISO.ID != "" {
+		return nodeClass.Spec.ISO.ID, nil
+	}
+	id, _, err := p.csClient.(*csapi.Client).ISO.GetIsoID(nodeClass.Spec.ISO.Name, "executable", zoneID)
+	return id, err
+}
 
-	return instance, nil
+// DetachISO detaches the ISO from a VM, if one is attached
+func (p *DefaultProvider) DetachISO(ctx context.Context, id string) error {
+	params := p.csClient.(*csapi.Client).VirtualMachine.NewListVirtualMachinesParams()
+	params.SetId(id)
+	resp, err := p.csClient.ListVirtualMachines(params)
+	if err != nil {
+		return fmt.Errorf("getting instance %s: %w", id, err)
+	}
+	if resp.Count == 0 || resp.VirtualMachines[0].Isoid == "" {
+		return nil
+	}
+
+	iso := p.csClient.(*csapi.Client).ISO
+	if _, err := iso.DetachIso(iso.NewDetachIsoParams(id)); err != nil {
+		return fmt.Errorf("detaching ISO from instance %s: %w", id, err)
+	}
+	return nil
+}
+
+// destroy destroys and expunges a VM, logging instead of returning the error
+func (p *DefaultProvider) destroy(ctx context.Context, id string) {
+	params := p.csClient.(*csapi.Client).VirtualMachine.NewDestroyVirtualMachineParams(id)
+	params.SetExpunge(true)
+	if _, err := p.csClient.DestroyVirtualMachine(params); err != nil {
+		log.FromContext(ctx).Error(err, "Failed to destroy instance, it must be removed manually", "instanceID", id)
+	}
+}
+
+// destroyByName destroys the VMs left behind by a failed deployment
+func (p *DefaultProvider) destroyByName(ctx context.Context, name string) {
+	params := p.csClient.(*csapi.Client).VirtualMachine.NewListVirtualMachinesParams()
+	params.SetName(name)
+	resp, err := p.csClient.ListVirtualMachines(params)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to look for a leftover instance", "name", name)
+		return
+	}
+	for _, vm := range resp.VirtualMachines {
+		// The name filter matches substrings
+		if vm.Name == name {
+			p.destroy(ctx, vm.Id)
+		}
+	}
 }
 
 // Get retrieves an instance by ID
@@ -247,14 +349,18 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 	log.FromContext(ctx).Info("Deleting instance", "instanceID", id)
 
-	// Check if VM exists first
-	_, err := p.Get(ctx, id)
-	if cloudprovider.IsNodeClaimNotFoundError(err) {
-		// Already deleted
-		return nil
-	}
+	// Check the current state, not a cached one
+	p.cache.Delete(fmt.Sprintf("instance-%s", id))
+	inst, err := p.Get(ctx, id)
 	if err != nil {
+		if cloudprovider.IsNodeClaimNotFoundError(err) {
+			return err
+		}
 		return fmt.Errorf("checking instance existence: %w", err)
+	}
+	p.cache.Delete(fmt.Sprintf("instance-%s", id))
+	if inst.State == "Destroyed" || inst.State == "Expunging" {
+		return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance %s is %s", id, inst.State))
 	}
 
 	// Destroy the VM
@@ -266,27 +372,36 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("destroying instance %s: %w", id, err)
 	}
 
-	// Remove from cache
-	cacheKey := fmt.Sprintf("instance-%s", id)
-	p.cache.Delete(cacheKey)
-
 	log.FromContext(ctx).Info("Instance deleted successfully", "instanceID", id)
 
 	return nil
 }
 
-// selectInstanceType selects the best instance type based on node claim requirements
-func (p *DefaultProvider) selectInstanceType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) *cloudprovider.InstanceType {
-	// For now, select the first instance type that's available
-	// TODO: In production, implement more sophisticated selection logic:
-	// - Match CPU, memory, and other resource requirements
-	// - Consider cost optimization
-	// - Check zone availability
-	// - Filter by node labels and taints
-	if len(instanceTypes) > 0 {
-		return instanceTypes[0]
+// selectInstanceType returns the cheapest instance type that satisfies the
+// requirements and fits the resource requests of the node claim, or nil if
+// there is none. Ties are broken by name so the choice is deterministic.
+func selectInstanceType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) *cloudprovider.InstanceType {
+	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+
+	var best *cloudprovider.InstanceType
+	bestPrice := math.MaxFloat64
+	for _, it := range instanceTypes {
+		if !reqs.IsCompatible(it.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
+			continue
+		}
+		if !resources.Fits(nodeClaim.Spec.Resources.Requests, it.Allocatable()) {
+			continue
+		}
+		offerings := it.Offerings.Available().Compatible(reqs)
+		if len(offerings) == 0 {
+			continue
+		}
+		price := offerings.Cheapest().Price
+		if price < bestPrice || (price == bestPrice && it.Name < best.Name) {
+			best, bestPrice = it, price
+		}
 	}
-	return nil
+	return best
 }
 
 // waitForVMState waits for a VM to reach a specific state

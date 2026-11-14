@@ -57,6 +57,13 @@ type CloudStackNodeClassSpec struct {
 	// +optional
 	UserData *string `json:"userData,omitempty"`
 
+	// ISO selects an ISO that is attached to each VM right after it is deployed.
+	// CloudStack Kubernetes Service nodes install kubeadm, kubelet and the
+	// container images from the Kubernetes binaries ISO of the cluster version.
+	// +kubebuilder:validation:XValidation:message="expected exactly one of ['id', 'name']",rule="has(self.id) != has(self.name)"
+	// +optional
+	ISO *ISOSelector `json:"iso,omitempty"`
+
 	// Tags to be applied on CloudStack resources like instances.
 	// +kubebuilder:validation:XValidation:message="empty tag keys aren't supported",rule="self.all(k, k != '')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/nodepool",rule="self.all(k, k != 'karpenter.sh/nodepool')"
@@ -78,6 +85,17 @@ type CloudStackNodeClassSpec struct {
 	// SSHKeyPair is the name of the SSH keypair to use for the instances
 	// +optional
 	SSHKeyPair *string `json:"sshKeyPair,omitempty"`
+}
+
+// ISOSelector identifies a single CloudStack ISO, by ID or by name.
+type ISOSelector struct {
+	// ID is the ISO id in CloudStack
+	// +optional
+	ID string `json:"id,omitempty"`
+
+	// Name is the ISO name in CloudStack
+	// +optional
+	Name string `json:"name,omitempty"`
 }
 
 // NetworkSelectorTerm defines selection logic for a network used by Karpenter to launch nodes.

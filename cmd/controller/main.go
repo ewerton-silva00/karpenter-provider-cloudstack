@@ -58,6 +58,7 @@ func main() {
 			op.ZoneProvider,
 			op.NetworkProvider,
 			op.TemplateProvider,
+			op.InstanceProvider,
 		)...).
 		Start(ctx)
 }
