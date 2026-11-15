@@ -120,6 +120,33 @@ helm install karpenter-cloudstack \
   --values values.yaml
 ```
 
+### Metrics
+
+The controller serves Prometheus metrics on port 8080 at `/metrics`, and the
+chart creates a `Service` for it. Most metrics come from Karpenter itself
+(`karpenter_nodepools_*`, `karpenter_nodeclaims_*`, `karpenter_nodes_*`); the
+calls to CloudStack are covered by `karpenter_cloudprovider_duration_seconds`
+and `karpenter_cloudprovider_errors_total`.
+
+With the Prometheus Operator, enable the `ServiceMonitor`. It is disabled by
+default because it needs the operator CRDs:
+
+```yaml
+serviceMonitor:
+  enabled: true
+  # Labels your Prometheus selects ServiceMonitors by
+  additionalLabels:
+    release: kube-prometheus-stack
+```
+
+Without the operator, scrape the `Service` directly. To look at the metrics by
+hand:
+
+```bash
+kubectl port-forward --namespace karpenter svc/<release>-karpenter-cloudstack 8080
+curl -s localhost:8080/metrics | grep '^karpenter_nodepools'
+```
+
 ### Installing from Source with Your Own Image
 
 To run modified code, build and publish your own image (requires a token with

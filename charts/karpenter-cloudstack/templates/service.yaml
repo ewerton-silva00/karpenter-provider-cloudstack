@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "karpenter-cloudstack.fullname" . }}
+  labels:
+    {{- include "karpenter-cloudstack.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+  - name: http-metrics
+    port: {{ .Values.service.port }}
+    targetPort: http
+    protocol: TCP
+  selector:
+    {{- include "karpenter-cloudstack.selectorLabels" . | nindent 4 }}

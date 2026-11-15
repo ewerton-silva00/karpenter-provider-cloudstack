@@ -39,9 +39,19 @@ securityContext:
     - ALL
   readOnlyRootFilesystem: true
 
+# Service that exposes the metrics endpoint (/metrics)
 service:
   type: ClusterIP
   port: 8080
+
+# ServiceMonitor for the Prometheus Operator. Requires its CRDs in the cluster.
+serviceMonitor:
+  enabled: false
+  # Labels the Prometheus instance selects ServiceMonitors by,
+  # for example `release: kube-prometheus-stack`
+  additionalLabels: {}
+  # Scrape interval; the Prometheus default when empty
+  interval: ""
 
 resources:
   limits:

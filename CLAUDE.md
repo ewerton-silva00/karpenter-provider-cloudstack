@@ -112,8 +112,10 @@ keep the chart version there in sync.
   cannot be swapped for `pkg/fake` without a panic.
 - **`main.go` passes `nil` as the `InstanceTypeStore`**: fine while the
   `NodeOverlay` feature gate is off.
-- **Dead chart values**: `webhook` and `service` in `values.yaml` are not used
-  by any template.
+- **Dead chart values**: `webhook` in `values.yaml` is not used by any
+  template.
+- **`ServiceMonitor`**: off by default; it only renders with
+  `serviceMonitor.enabled`, since the Prometheus Operator CRDs may be missing.
 
 ## Conventions
 
