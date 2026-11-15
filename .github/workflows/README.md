@@ -32,14 +32,13 @@ Automatic publication workflow that runs when creating tags.
   - Push Helm chart to OCI registry
   - Create GitHub Release with assets
 
-- **update-helm-repo**:
-  - Update Helm repository on GitHub Pages
+**Generated artifacts** (`{OWNER}` is the owner of the repository the workflow runs in):
+- Container Image: `ghcr.io/{OWNER}/cloudstack/karpenter/controller:v{VERSION}`, plus `latest` for stable versions
+- Helm Chart (OCI): `oci://ghcr.io/{OWNER}/charts/karpenter-cloudstack`, version `{VERSION}`
+- GitHub Release with the chart package and the CRDs shipped in the chart
 
-**Generated artifacts:**
-- Container Image: `ghcr.io/mperea/cloudstack/karpenter/controller:v{VERSION}`
-- Helm Chart (OCI): `oci://ghcr.io/mperea/cloudstack/karpenter/karpenter`
-- Helm Chart (GitHub Pages): `https://mperea.github.io/karpenter-provider-cloudstack`
-- GitHub Release with CRDs
+The chart version and `appVersion` are taken from the tag; the values in
+`Chart.yaml` are overwritten at release time.
 
 ## Creating a Release
 
@@ -53,7 +52,7 @@ git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 
 # 3. The workflow runs automatically
-# Monitor at: https://github.com/mperea/karpenter-provider-cloudstack/actions
+# Monitor in the Actions tab of the repository
 ```
 
 ## Environment Variables
@@ -64,7 +63,8 @@ git push origin v0.1.0
 ### Release Workflow
 - `REGISTRY`: GitHub Container Registry (`ghcr.io`)
 - `IMAGE_NAME`: Image name (`cloudstack/karpenter/controller`)
-- `CHART_NAME`: Chart name (`cloudstack/karpenter/karpenter`)
+- `CHART_NAME`: Chart name (`karpenter-cloudstack`)
+- `CHART_REPOSITORY`: Path of the chart under the owner's namespace (`charts`)
 
 ## Required Permissions
 
@@ -85,16 +85,6 @@ These permissions are automatically configured in the workflow.
 **Cause:** Image was not published correctly
 **Solution:** Verify that the `release` workflow completed successfully
 
-### Error: "gh-pages branch not found"
-**Cause:** The `gh-pages` branch doesn't exist
-**Solution:** Create the branch manually:
-```bash
-git checkout --orphan gh-pages
-git rm -rf .
-echo "# Helm Charts" > README.md
-git add README.md
-git commit -m "Initialize gh-pages"
-git push origin gh-pages
-```
-
-Then configure in GitHub Settings → Pages → Source: `gh-pages` branch.
+### Error: "denied: permission_denied: write_package" when pushing
+**Cause:** The package already exists and was not created by this repository's workflow, so the `GITHUB_TOKEN` cannot write to it
+**Solution:** In the package settings, under "Manage Actions access", add this repository with the `Write` role. Do it for both the image and the chart packages.

@@ -8,7 +8,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: cloudstack/karpenter/controller
-  CHART_NAME: cloudstack/karpenter/karpenter
+  CHART_NAME: karpenter-cloudstack
+  CHART_REPOSITORY: charts
 
 permissions:
   contents: write
@@ -23,12 +24,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.25.4"
-          cache: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -110,12 +105,7 @@ jobs:
 
       - name: Push Helm Chart to OCI Registry
         run: |
-          helm push .release/karpenter-${{ steps.version.outputs.chart_version }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/cloudstack/karpenter
-
-      - name: Generate CRDs for release
-        run: |
-          go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-          controller-gen crd:generateEmbeddedObjectMeta=true paths="./pkg/apis/..." output:crd:artifacts:config=.release/crds
+          helm push .release/${{ env.CHART_NAME }}-${{ steps.version.outputs.chart_version }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_REPOSITORY }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -125,7 +115,7 @@ jobs:
           generate_release_notes: true
           files: |
             .release/*.tgz
-            .release/crds/*.yaml
+            charts/karpenter-cloudstack/crds/*.yaml
           body: |
             ## Container Image (multi-arch: amd64, arm64)
 
@@ -135,75 +125,18 @@ jobs:
 
             ## Helm Chart Installation
 
-            ### Option 1: OCI Registry (Recommended)
             ```bash
-            helm install karpenter \
-              oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/cloudstack/karpenter/karpenter \
+            helm install karpenter-cloudstack \
+              oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.CHART_REPOSITORY }}/${{ env.CHART_NAME }} \
               --version ${{ steps.version.outputs.chart_version }} \
               --namespace karpenter \
               --create-namespace
             ```
 
-            ### Option 2: GitHub Pages
-            ```bash
-            helm repo add cloudstack-karpenter https://${{ github.repository_owner }}.github.io/karpenter-provider-cloudstack
-            helm repo update
-            helm install karpenter cloudstack-karpenter/karpenter \
-              --version ${{ steps.version.outputs.chart_version }} \
-              --namespace karpenter \
-              --create-namespace
-            ```
+            See INSTALLATION.md for the required values.
 
             ## What's Changed
 
             See the full changelog below for details.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Update GitHub Pages Helm repository
-  update-helm-repo:
-    name: Update Helm Repository
-    runs-on: ubuntu-latest
-    needs: release
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages
-
-      - name: Install Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: '3.14.0'
-
-      - name: Extract version
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          echo "chart_version=${VERSION#v}" >> $GITHUB_OUTPUT
-
-      - name: Package Helm Chart
-        run: |
-          helm package charts/karpenter-cloudstack --version ${{ steps.version.outputs.chart_version }}
-
-      - name: Update Helm repository index
-        run: |
-          mkdir -p gh-pages/charts
-          mv karpenter-${{ steps.version.outputs.chart_version }}.tgz gh-pages/charts/
-          helm repo index gh-pages --url https://${{ github.repository_owner }}.github.io/karpenter-provider-cloudstack
-
-      - name: Commit and push to gh-pages
-        working-directory: gh-pages
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Release Helm chart version ${{ steps.version.outputs.chart_version }}"
-          git push
-
