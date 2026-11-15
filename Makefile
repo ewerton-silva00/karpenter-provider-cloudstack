@@ -12,6 +12,9 @@ IMAGE_NAME ?= $(PROJECT_PATH)/controller
 IMAGE_TAG ?= $(VERSION)
 IMAGE = $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
+# Tools
+GOLANGCI_LINT_VERSION ?= v2.15.0
+
 # Helm Chart
 CHART_NAME ?= $(PROJECT_PATH)/karpenter
 CHART_VERSION ?= $(VERSION)
@@ -102,8 +105,7 @@ undeploy: ## Remove from Kubernetes cluster
 
 tools: ## Install development tools
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-	@echo "Installing golangci-lint official binary..."
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 verify: tidy fmt vet lint test ## Run all verification checks
 
