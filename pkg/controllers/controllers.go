@@ -22,12 +22,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/karpenter/pkg/events"
 
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/controllers/node/providerid"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/controllers/nodeclass"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/instance"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/network"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/template"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/zone"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/controllers/node/providerid"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/controllers/nodeclass"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/instance"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/network"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/template"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/zone"
 )
 
 // NewControllers returns a slice of CloudStack-specific controllers

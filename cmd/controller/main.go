@@ -15,9 +15,9 @@ limitations under the License.
 package main
 
 import (
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/cloudprovider"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/controllers"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/operator"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/cloudprovider"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/controllers"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/operator"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"

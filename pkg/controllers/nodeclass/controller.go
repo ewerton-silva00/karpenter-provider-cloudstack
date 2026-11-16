@@ -31,10 +31,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/events"
 
-	v1 "github.com/mperea/karpenter-provider-cloudstack/pkg/apis/v1"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/network"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/template"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/zone"
+	v1 "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/apis/v1"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/network"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/template"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/zone"
 )
 
 const (

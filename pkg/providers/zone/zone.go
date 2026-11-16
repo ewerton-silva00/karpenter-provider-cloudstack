@@ -23,7 +23,7 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	csapi "github.com/mperea/karpenter-provider-cloudstack/pkg/cloudstack"
+	csapi "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/cloudstack"
 )
 
 // Provider provides zone information

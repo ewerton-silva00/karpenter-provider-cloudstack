@@ -16,7 +16,7 @@ package fake
 
 import (
 	"github.com/apache/cloudstack-go/v2/cloudstack"
-	csapi "github.com/mperea/karpenter-provider-cloudstack/pkg/cloudstack"
+	csapi "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/cloudstack"
 )
 
 // CloudStackAPI is a fake implementation of the CloudStack API for testing

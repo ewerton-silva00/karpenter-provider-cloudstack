@@ -28,8 +28,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	v1 "github.com/mperea/karpenter-provider-cloudstack/pkg/apis/v1"
-	csapi "github.com/mperea/karpenter-provider-cloudstack/pkg/cloudstack"
+	v1 "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/apis/v1"
+	csapi "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/cloudstack"
 )
 
 // Provider provides instance type information

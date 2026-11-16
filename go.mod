@@ -1,4 +1,4 @@
-module github.com/mperea/karpenter-provider-cloudstack
+module github.com/ewerton-silva00/karpenter-provider-cloudstack
 
 go 1.25.4
 
