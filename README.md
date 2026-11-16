@@ -1,13 +1,25 @@
 # Karpenter Provider for Apache CloudStack
 
-[![GitHub Stars](https://img.shields.io/github/stars/mperea/karpenter-provider-cloudstack?style=social)](https://github.com/mperea/karpenter-provider-cloudstack)
+[![CI](https://github.com/ewerton-silva00/karpenter-provider-cloudstack/actions/workflows/ci.yaml/badge.svg)](https://github.com/ewerton-silva00/karpenter-provider-cloudstack/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/mperea/karpenter-provider-cloudstack)](https://goreportcard.com/report/github.com/mperea/karpenter-provider-cloudstack)
 
 A [Karpenter](https://karpenter.sh) cloud provider implementation for Apache CloudStack.
 
-> **Author:** Mario Perea ([@mperea](https://github.com/mperea))
-> This project is developed in my personal time as a contribution to the CloudStack and Kubernetes communities.
+> **Status: experimental.** Node provisioning is validated end to end only on
+> CloudStack Kubernetes Service (CKS). See [docs/CKS.md](docs/CKS.md).
+
+## Origin and credits
+
+This project started as a fork of
+[mperea/karpenter-provider-cloudstack](https://github.com/mperea/karpenter-provider-cloudstack),
+created by **Mario Perea** ([@mperea](https://github.com/mperea)), who designed
+the provider and wrote its first implementation. It is now maintained
+independently by Ewerton Silva ([@ewerton-silva00](https://github.com/ewerton-silva00)).
+
+Since the fork, the work has been to make the provider run on a real cluster:
+fixes for the controller to start, a published chart and image, node
+provisioning on CKS, tests and CI. The history of the original project is
+preserved in this repository.
 
 ## Overview
 
@@ -20,7 +32,7 @@ This project provides a CloudStack-specific implementation of Karpenter's cloud 
 - **Network Management**: Support for CloudStack network selection and configuration
 - **Template Management**: Flexible template selection for different workload types
 - **Zone Support**: Multi-zone deployment capabilities
-- **Tag-based Resource Selection**: Use CloudStack tags to filter and select resources
+- **Tag-based Resource Selection**: Use CloudStack tags to filter and select networks and templates (not implemented for service offerings yet)
 
 ## Architecture
 
@@ -43,13 +55,17 @@ The provider follows Karpenter's extensible architecture with CloudStack-specifi
 
 ### Installation
 
+The full guide is in [INSTALLATION.md](INSTALLATION.md). On CloudStack
+Kubernetes Service, follow [docs/CKS.md](docs/CKS.md) for the `NodeClass` and
+`NodePool`; the generic examples below were not validated.
+
 1. Install the Karpenter CloudStack provider:
 
 ```bash
-helm repo add karpenter-cloudstack https://mperea.github.io/karpenter-provider-cloudstack
-helm install karpenter-cloudstack karpenter-cloudstack/karpenter-cloudstack \
-  --namespace karpenter \
-  --set cloudstack.apiUrl=https://your-cloudstack-api.com \
+helm install karpenter-cloudstack \
+  oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack \
+  --namespace karpenter --create-namespace \
+  --set cloudstack.apiUrl=https://your-cloudstack-api.com/client/api \
   --set cloudstack.apiKey=YOUR_API_KEY \
   --set cloudstack.secretKey=YOUR_SECRET_KEY \
   --set clusterName=my-cluster

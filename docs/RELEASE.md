@@ -8,21 +8,19 @@ Each release generates the following artifacts:
 
 ### 1. Container Image
 ```
-ghcr.io/mperea/cloudstack/karpenter/controller:v{VERSION}
+ghcr.io/ewerton-silva00/cloudstack/karpenter/controller:v{VERSION}
 ```
 - Published to GitHub Container Registry (GHCR)
 - Architectures: `amd64`, `arm64`
 - Generated tags:
   - `v{VERSION}` - Specific version (e.g., `v0.1.0`)
   - `latest` - Latest stable version (only for stable releases, not pre-releases)
-  - `main` - Latest version from main branch (continuous development)
 
 ### 2. Helm Chart
 ```
-ghcr.io/mperea/cloudstack/karpenter/karpenter:v{VERSION}
+oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack:{VERSION}
 ```
-- Published to GHCR as OCI artifact
-- Also available on GitHub Pages: `https://mperea.github.io/karpenter-provider-cloudstack`
+- Published to GHCR as OCI artifact; the chart version has no `v` prefix
 
 ### 3. CRDs (Custom Resource Definitions)
 - Included in the Helm Chart
@@ -43,10 +41,8 @@ ghcr.io/mperea/cloudstack/karpenter/karpenter:v{VERSION}
 ```bash
 git push origin main
 ```
-**Generated artifacts:**
-- Container Image: `:main`
-- Helm Chart: Not published
-- GitHub Release: No
+**Generated artifacts:** none. The CI workflow tests, lints and builds, but
+publishes nothing.
 
 **Usage:** Continuous testing, active development
 
@@ -68,13 +64,9 @@ git push origin v0.1.0-alpha.1
 
 **Installation:**
 ```bash
-# Helm Chart from OCI
-helm install karpenter oci://ghcr.io/mperea/cloudstack/karpenter/karpenter \
+helm install karpenter-cloudstack \
+  oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack \
   --version 0.1.0-alpha.1
-
-# Helm Chart from GitHub Pages
-helm repo add cloudstack-karpenter https://mperea.github.io/karpenter-provider-cloudstack
-helm install karpenter cloudstack-karpenter/karpenter --version 0.1.0-alpha.1
 ```
 
 ---
@@ -96,13 +88,9 @@ git push origin v0.1.0
 
 **Installation:**
 ```bash
-# Helm Chart from OCI
-helm install karpenter oci://ghcr.io/mperea/cloudstack/karpenter/karpenter \
+helm install karpenter-cloudstack \
+  oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack \
   --version 0.1.0
-
-# Helm Chart from GitHub Pages (recommended)
-helm repo add cloudstack-karpenter https://mperea.github.io/karpenter-provider-cloudstack
-helm install karpenter cloudstack-karpenter/karpenter --version 0.1.0
 ```
 
 ---
@@ -188,20 +176,20 @@ git push origin v0.1.0
 
 ```bash
 # GitHub Actions workflow runs automatically
-# Check: https://github.com/mperea/karpenter-provider-cloudstack/actions
+# Check: https://github.com/ewerton-silva00/karpenter-provider-cloudstack/actions
 ```
 
 ### 6. Verify Artifacts
 
 ```bash
 # Verify Docker image
-docker pull ghcr.io/mperea/cloudstack/karpenter/controller:v0.1.0
+docker pull ghcr.io/ewerton-silva00/cloudstack/karpenter/controller:v0.1.0
 
 # Verify Helm Chart (OCI)
-helm pull oci://ghcr.io/mperea/cloudstack/karpenter/karpenter --version 0.1.0
+helm pull oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack --version 0.1.0
 
 # Verify GitHub Release
-# https://github.com/mperea/karpenter-provider-cloudstack/releases
+# https://github.com/ewerton-silva00/karpenter-provider-cloudstack/releases
 ```
 
 ### 7. Update Documentation
@@ -229,7 +217,7 @@ git push origin :refs/tags/v0.1.0
 gh release delete v0.1.0
 
 # Delete GHCR images (from UI)
-# https://github.com/users/mperea/packages/container/cloudstack%2Fkarpenter%2Fcontroller
+# https://github.com/users/ewerton-silva00/packages/container/cloudstack%2Fkarpenter%2Fcontroller
 ```
 
 ---
