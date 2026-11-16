@@ -45,8 +45,8 @@ kubectl create namespace karpenter
 
 The chart is published as an OCI artifact; there is no `helm repo add` step.
 Its defaults point to the controller image published by this fork
-(`ghcr.io/ewerton-silva00/cloudstack/karpenter/controller`, tagged with the
-commit it was built from).
+(`ghcr.io/ewerton-silva00/cloudstack/karpenter/controller`, tagged with its
+release version).
 
 Prefer a values file (see [Configuration Options](#configuration-options))
 over `--set` for the credentials, to keep them out of your shell history.
@@ -54,7 +54,7 @@ over `--set` for the credentials, to keep them out of your shell history.
 ```bash
 helm install karpenter-cloudstack \
   oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack \
-  --version 0.2.0 \
+  --version 0.2.1 \
   --namespace karpenter \
   --set cloudstack.apiUrl=https://your-cloudstack-api.com/client/api \
   --set cloudstack.apiKey=YOUR_API_KEY \
@@ -115,7 +115,7 @@ Install with custom values:
 ```bash
 helm install karpenter-cloudstack \
   oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack \
-  --version 0.2.0 \
+  --version 0.2.1 \
   --namespace karpenter \
   --values values.yaml
 ```
@@ -330,7 +330,7 @@ If you have self-signed certificates:
 ```bash
 helm upgrade karpenter-cloudstack \
   oci://ghcr.io/ewerton-silva00/charts/karpenter-cloudstack \
-  --version 0.2.0 \
+  --version 0.2.1 \
   --namespace karpenter \
   --set cloudstack.verifySSL=false \
   --reuse-values
