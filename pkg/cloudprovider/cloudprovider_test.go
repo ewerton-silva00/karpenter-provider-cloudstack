@@ -21,8 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 
-	v1 "github.com/mperea/karpenter-provider-cloudstack/pkg/apis/v1"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/instance"
+	v1 "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/apis/v1"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/instance"
 )
 
 func TestProviderID(t *testing.T) {

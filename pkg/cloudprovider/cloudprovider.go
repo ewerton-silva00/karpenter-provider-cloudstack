@@ -33,9 +33,9 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 
-	v1 "github.com/mperea/karpenter-provider-cloudstack/pkg/apis/v1"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/instance"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/instancetype"
+	v1 "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/apis/v1"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/instance"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/instancetype"
 )
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)

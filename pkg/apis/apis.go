@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	v1 "github.com/mperea/karpenter-provider-cloudstack/pkg/apis/v1"
+	v1 "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/apis/v1"
 )
 
 const (

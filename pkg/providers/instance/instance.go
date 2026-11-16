@@ -30,10 +30,10 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
-	v1 "github.com/mperea/karpenter-provider-cloudstack/pkg/apis/v1"
-	csapi "github.com/mperea/karpenter-provider-cloudstack/pkg/cloudstack"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/network"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/template"
+	v1 "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/apis/v1"
+	csapi "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/cloudstack"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/network"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/template"
 )
 
 // Provider provides instance management

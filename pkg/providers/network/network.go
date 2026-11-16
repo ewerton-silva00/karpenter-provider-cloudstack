@@ -23,8 +23,8 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	v1 "github.com/mperea/karpenter-provider-cloudstack/pkg/apis/v1"
-	csapi "github.com/mperea/karpenter-provider-cloudstack/pkg/cloudstack"
+	v1 "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/apis/v1"
+	csapi "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/cloudstack"
 )
 
 // Provider provides network information

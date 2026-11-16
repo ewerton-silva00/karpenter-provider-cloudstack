@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/cloudprovider"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/instance"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/cloudprovider"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/instance"
 )
 
 const controllerName = "node.providerid"

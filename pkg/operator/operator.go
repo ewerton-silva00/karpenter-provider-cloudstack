@@ -22,13 +22,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/operator"
 
-	csapi "github.com/mperea/karpenter-provider-cloudstack/pkg/cloudstack"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/operator/options"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/instance"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/instancetype"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/network"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/template"
-	"github.com/mperea/karpenter-provider-cloudstack/pkg/providers/zone"
+	csapi "github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/cloudstack"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/operator/options"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/instance"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/instancetype"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/network"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/template"
+	"github.com/ewerton-silva00/karpenter-provider-cloudstack/pkg/providers/zone"
 )
 
 const (
