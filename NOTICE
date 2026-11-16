@@ -1,0 +1,8 @@
+Karpenter Provider for Apache CloudStack
+
+This project is derived from karpenter-provider-cloudstack by Mario Perea
+(https://github.com/mperea/karpenter-provider-cloudstack), licensed under the
+Apache License, Version 2.0.
+
+It has been modified since. The changes are recorded in the history of this
+repository (https://github.com/ewerton-silva00/karpenter-provider-cloudstack).

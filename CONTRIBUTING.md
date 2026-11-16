@@ -16,7 +16,7 @@ Thank you for your interest in contributing to the Karpenter CloudStack Provider
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/mperea/karpenter-provider-cloudstack.git
+git clone https://github.com/ewerton-silva00/karpenter-provider-cloudstack.git
 cd karpenter-provider-cloudstack
 ```
 

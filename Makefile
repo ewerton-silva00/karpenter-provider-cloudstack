@@ -4,7 +4,7 @@
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 VERSION ?= $(shell git describe --tags --always --dirty)
-REGISTRY ?= ghcr.io/mperea
+REGISTRY ?= ghcr.io/ewerton-silva00
 PROJECT_PATH ?= cloudstack/karpenter
 
 # Container Image

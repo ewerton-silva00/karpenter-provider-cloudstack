@@ -1,12 +1,13 @@
 # CLAUDE.md
 
-Karpenter provider for Apache CloudStack. This repository is a fork of
-`mperea/karpenter-provider-cloudstack` (`upstream` remote); work lands on the
-fork (`origin`, `ewerton-silva00/karpenter-provider-cloudstack`).
+Karpenter provider for Apache CloudStack, maintained at
+`ewerton-silva00/karpenter-provider-cloudstack` (`origin`). It started as a
+fork of `mperea/karpenter-provider-cloudstack` by Mario Perea and is now
+developed independently; keep the credit in `README.md` and `NOTICE`.
 
 ## Status
 
-Experimental. Upstream was never run on a real cluster: it had no releases, no
+Experimental. The original project was never run on a real cluster: it had no releases, no
 published image or chart, and no tests. Treat existing code and docs as
 unverified until exercised.
 
@@ -58,10 +59,11 @@ helm lint charts/karpenter-cloudstack
 helm template karpenter charts/karpenter-cloudstack -n karpenter --include-crds
 ```
 
-Image (the Makefile defaults to the upstream registry, override it):
+Image, for a build to test before a release (releases are tagged `vX.Y.Z` by
+the release workflow):
 
 ```bash
-make docker-build REGISTRY=ghcr.io/ewerton-silva00 IMAGE_TAG=dev-<short-sha>
+make docker-build IMAGE_TAG=dev-<short-sha>
 docker push ghcr.io/ewerton-silva00/cloudstack/karpenter/controller:dev-<short-sha>
 ```
 
